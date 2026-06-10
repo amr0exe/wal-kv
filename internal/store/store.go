@@ -19,11 +19,26 @@ func NewKVStore() (*KV, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	return &KV{
+	kv := &KV{
 		store: make(map[string]string),
 		wal:   w,
-	}, nil
+	}
+
+	records, err := w.Recover()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, r := range records {
+		switch r.Op {
+		case types.OpSet:
+			kv.store[r.Key] = r.Value
+		case types.OpDel:
+			delete(kv.store, r.Key)
+		}
+	}
+
+	return kv, nil
 }
 
 func (kv *KV) SET(k string, v string) error {
@@ -46,9 +61,14 @@ func (kv *KV) GET(k string) (string, bool) {
 	return v, ok
 }
 
-func (kv *KV) DEL(k string) {
+func (kv *KV) DEL(k string) error {
+	if err := kv.wal.Append(types.OpDel, k, ""); err != nil {
+		return err
+	}
+	
 	kv.mu.Lock()
 	defer kv.mu.Unlock()
 
 	delete(kv.store, k)
+	return nil
 }

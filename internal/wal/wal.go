@@ -4,7 +4,9 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"hash/crc32"
+	"io"
 	ty "kvstore/internal/types"
 	"log"
 	"os"
@@ -13,6 +15,12 @@ import (
 type WAL struct {
 	file   *os.File
 	writer *bufio.Writer
+}
+
+type Record struct {
+	Op    ty.OpType
+	Key   string
+	Value string
 }
 
 func NewWAL() (*WAL, error) {
@@ -73,4 +81,65 @@ func (w *WAL) Append(op ty.OpType, key, val string) error {
 		return err
 	}
 	return w.file.Sync()
+}
+
+func (w *WAL) Recover() ([]*Record, error) {
+	w.file.Seek(0, io.SeekStart)
+	r := bufio.NewReader(w.file)
+
+	var records []*Record
+
+	for {
+		var op ty.OpType
+		if err := binary.Read(r, binary.LittleEndian, &op); err != nil {
+			break
+		}
+
+		var key_len uint32
+		if klErr := binary.Read(r, binary.LittleEndian, &key_len); klErr != nil {
+			break
+		}
+
+		key := make([]byte, key_len)
+		if kErr := binary.Read(r, binary.LittleEndian, &key); kErr != nil {
+			break
+		}
+
+		var val_len uint32
+		if vlErr := binary.Read(r, binary.LittleEndian, &val_len); vlErr != nil {
+			break
+		}
+
+		val := make([]byte, val_len)
+		if vErr := binary.Read(r, binary.LittleEndian, &val); vErr != nil {
+			break
+		}
+
+		var stored_checksum uint32
+		if cErr := binary.Read(r, binary.LittleEndian, &stored_checksum); cErr != nil {
+			break
+		}
+
+		buf := new(bytes.Buffer)
+
+		binary.Write(buf, binary.LittleEndian, op)
+		binary.Write(buf, binary.LittleEndian, key_len)
+		buf.Write(key)
+		binary.Write(buf, binary.LittleEndian, val_len)
+		buf.Write(val)
+
+		calcChecksum := crc32.ChecksumIEEE(buf.Bytes())
+
+		if calcChecksum != stored_checksum {
+			return nil, errors.New("corrupted WAL record detected")
+		}
+
+		records = append(records, &Record{
+			Op:    op,
+			Key:   string(key),
+			Value: string(val),
+		})
+	}
+
+	return records, nil
 }

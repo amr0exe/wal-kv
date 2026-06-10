@@ -48,6 +48,8 @@ func (s *KVService) Del(key string) error {
 		return ErrNoKV
 	}
 
-	s.db.DEL(key)
+	if err := s.db.DEL(key); err != nil {
+		return err
+	}
 	return nil
 }
