@@ -23,7 +23,10 @@ func (s *KVService) Set(key, value string) error {
 		return ErrNoKV
 	}
 
-	s.db.SET(key, value)
+	err := s.db.SET(key, value)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 

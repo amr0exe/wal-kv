@@ -11,7 +11,10 @@ import (
 )
 
 func main() {
-	db := store.NewKVStore()
+	db, err := store.NewKVStore()
+	if err != nil {
+		log.Fatalf("failed constructing wal ... %s", err.Error())
+	}
 	svc := service.NewKVService(db)
 	h := handler.NewKVHandler(svc)
 

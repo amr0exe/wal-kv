@@ -1,25 +1,41 @@
 package store
 
-import "sync"
+import (
+	"kvstore/internal/types"
+	"kvstore/internal/wal"
+	"sync"
+)
 
 // KV defines structure of an in-memory key-value store
 // RWmutex is chosen for focusing on read-heavy worloads
 type KV struct {
 	mu    sync.RWMutex
 	store map[string]string
+	wal   *wal.WAL
 }
 
-func NewKVStore() *KV {
+func NewKVStore() (*KV, error) {
+	w, err := wal.NewWAL()
+	if err != nil {
+		return nil, err
+	}
+
 	return &KV{
 		store: make(map[string]string),
-	}
+		wal:   w,
+	}, nil
 }
 
-func (kv *KV) SET(k string, v string) {
+func (kv *KV) SET(k string, v string) error {
+	if err := kv.wal.Append(types.OpSet, k, v); err != nil {
+		return err
+	}
+
 	kv.mu.Lock()
 	defer kv.mu.Unlock()
 
 	kv.store[k] = v
+	return nil
 }
 
 func (kv *KV) GET(k string) (string, bool) {
