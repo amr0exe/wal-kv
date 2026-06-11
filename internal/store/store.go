@@ -3,6 +3,7 @@ package store
 import (
 	"kvstore/internal/types"
 	"kvstore/internal/wal"
+	"os"
 	"sync"
 )
 
@@ -46,6 +47,10 @@ func (kv *KV) SET(k string, v string) error {
 		return err
 	}
 
+	if os.Getenv("CRASH_AFTER_WRITE") == "1" {
+		os.Exit(1)
+	}
+
 	kv.mu.Lock()
 	defer kv.mu.Unlock()
 
@@ -65,7 +70,7 @@ func (kv *KV) DEL(k string) error {
 	if err := kv.wal.Append(types.OpDel, k, ""); err != nil {
 		return err
 	}
-	
+
 	kv.mu.Lock()
 	defer kv.mu.Unlock()
 

@@ -7,6 +7,12 @@
 ```bash
 sudo apt install httpie         # opt, for curl
 
+# (Opt) Tests for crash after appending to wal_log file
+export CRASH_AFTER_WRITE
+echo $CRASH_AFTER_WRITE
+
+unset CRASH_AFTER_WRITE # removes crash_test_variable
+
 make                            # run the app
 
 http PUT :8080/kv/foo value=bar # SET api
