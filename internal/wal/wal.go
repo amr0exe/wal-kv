@@ -18,6 +18,7 @@ type WAL struct {
 }
 
 type Record struct {
+	Seq   uint32
 	Op    ty.OpType
 	Key   string
 	Value string
@@ -45,11 +46,14 @@ func (w *WAL) Close() error {
 // Append appends SET|DEL actions to wal file
 // where actions are appended in binary format
 // format in which actions are stored is as follow:
-// [op | key_len | key | val_len | val | checksum]
-func (w *WAL) Append(op ty.OpType, key, val string) error {
+// [seq | op | key_len | key | val_len | val | checksum]
+func (w *WAL) Append(seq uint32, op ty.OpType, key, val string) error {
 	buf := new(bytes.Buffer)
 
 	// Start writing to buffer
+	// write operation's sequence_no
+	binary.Write(buf, binary.LittleEndian, seq)
+
 	// write operation_type
 	binary.Write(buf, binary.LittleEndian, op)
 
@@ -67,7 +71,8 @@ func (w *WAL) Append(op ty.OpType, key, val string) error {
 	// write val
 	buf.WriteString(val)
 
-	// write checksum
+	// Reads everything that's written inside buffer till now and
+	// creates checksum value based on that
 	c := crc32.ChecksumIEEE(buf.Bytes())
 	binary.Write(buf, binary.LittleEndian, c)
 
@@ -90,6 +95,11 @@ func (w *WAL) Recover() ([]*Record, error) {
 	var records []*Record
 
 	for {
+		var seq uint32
+		if err := binary.Read(r, binary.LittleEndian, &seq); err != nil {
+			break
+		}
+
 		var op ty.OpType
 		if err := binary.Read(r, binary.LittleEndian, &op); err != nil {
 			break
@@ -120,8 +130,11 @@ func (w *WAL) Recover() ([]*Record, error) {
 			break
 		}
 
+		// Reconstructs checksum value based on seq|op|key_len|key|val_len|val
+		// compares with existing one for corruption
 		buf := new(bytes.Buffer)
 
+		binary.Write(buf, binary.LittleEndian, seq)
 		binary.Write(buf, binary.LittleEndian, op)
 		binary.Write(buf, binary.LittleEndian, key_len)
 		buf.Write(key)
@@ -130,11 +143,13 @@ func (w *WAL) Recover() ([]*Record, error) {
 
 		calcChecksum := crc32.ChecksumIEEE(buf.Bytes())
 
+		// compares currently calculated and stored checksum value
 		if calcChecksum != stored_checksum {
 			return nil, errors.New("corrupted WAL record detected")
 		}
 
 		records = append(records, &Record{
+			Seq:   seq,
 			Op:    op,
 			Key:   string(key),
 			Value: string(val),

@@ -13,6 +13,13 @@ type KV struct {
 	mu    sync.RWMutex
 	store map[string]string
 	wal   *wal.WAL
+
+	seq uint32
+}
+
+func (kv *KV) nextSeq() uint32 {
+	kv.seq++
+	return kv.seq
 }
 
 func NewKVStore() (*KV, error) {
@@ -30,20 +37,32 @@ func NewKVStore() (*KV, error) {
 		return nil, err
 	}
 
+	temp := make(map[string]string)
+	maxSeq := uint32(0)
+
 	for _, r := range records {
 		switch r.Op {
 		case types.OpSet:
-			kv.store[r.Key] = r.Value
+			temp[r.Key] = r.Value
 		case types.OpDel:
-			delete(kv.store, r.Key)
+			delete(temp, r.Key)
+		}
+
+		if r.Seq > maxSeq {
+			maxSeq = r.Seq
 		}
 	}
+
+	kv.store = temp
+	kv.seq = maxSeq
 
 	return kv, nil
 }
 
 func (kv *KV) SET(k string, v string) error {
-	if err := kv.wal.Append(types.OpSet, k, v); err != nil {
+	seq := kv.nextSeq()
+
+	if err := kv.wal.Append(seq, types.OpSet, k, v); err != nil {
 		return err
 	}
 
@@ -67,7 +86,8 @@ func (kv *KV) GET(k string) (string, bool) {
 }
 
 func (kv *KV) DEL(k string) error {
-	if err := kv.wal.Append(types.OpDel, k, ""); err != nil {
+	seq := kv.nextSeq()
+	if err := kv.wal.Append(seq, types.OpDel, k, ""); err != nil {
 		return err
 	}
 
