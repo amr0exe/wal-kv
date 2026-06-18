@@ -1,21 +1,50 @@
-# wal_kv
+# wal-kv
 
-`wal_kv` is an in-memory Key-Value store, which mimics Write-Ahead-Log(wal), resulting in persistence through wal.log file.
+In-memory key-value store with WAL persistence and primary-replica replication.
 
----
+**Primary** handles SET/GET/DEL and replicates mutations to replicas. **Replicas** serve GET requests and stay in sync via snapshot on boot + real-time replication from primary.
+
+## Quick Start
 
 ```bash
-sudo apt install httpie         # opt, for curl
+make build           # build the binary
 
-# (Opt) Tests for crash after appending to wal_log file
-export CRASH_AFTER_WRITE
-echo $CRASH_AFTER_WRITE
+# Terminal 1 — Primary
+make primary         # :8080 (HTTP) + :5001 (gRPC)
 
-unset CRASH_AFTER_WRITE # removes crash_test_variable
+# Terminals 2-4 — Replicas
+make r1              # :8081 (HTTP) + :5002 (gRPC) → primary :5001
+make r2              # :8082 (HTTP) + :5003 (gRPC) → primary :5001
+make r3              # :8083 (HTTP) + :5004 (gRPC) → primary :5001
+```
 
-make                            # run the app
+## Test
 
-http PUT :8080/kv/foo value=bar # SET api
-http GET :8080/kv/foo           # GET api
-http DELETE :8080/kv/foo        # DEL api
+```bash
+# Write to primary — replicates to all replicas
+curl -X PUT localhost:8080/kv/foo -d '{"value":"bar"}'
+
+# Read from any replica
+curl localhost:8081/kv/foo
+curl localhost:8082/kv/foo
+curl localhost:8083/kv/foo
+
+# Delete from primary — also replicated
+curl -X DELETE localhost:8080/kv/foo
+
+# Replicas reject writes
+curl -X PUT localhost:8081/kv/x -d '{"value":"y"}'   # 405
+
+# Stop all
+make kill
+```
+
+## Manual Node Setup
+
+```bash
+# Primary
+./app --node=primary --http-port=:8080 --port=:5001 --replicas=localhost:5002,localhost:5003,localhost:5004
+
+# Replica 1
+./app --node=replica --http-port=:8081 --port=:5002 --primary=localhost:5001
 ```

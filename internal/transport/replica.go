@@ -3,6 +3,8 @@ package transport
 import (
 	"context"
 	"kvstore/internal/service"
+	"kvstore/internal/store"
+	ty "kvstore/internal/types"
 	"kvstore/pb"
 	"log"
 	"net"
@@ -39,8 +41,13 @@ func (s *Server) GetSnapshot(req *pb.SnapshotRequest, stream pb.Replication_GetS
 }
 
 func (s *Server) ApplyMutation(ctx context.Context, req *pb.Mutation) (*pb.Ack, error) {
-	err := s.svc.Set(req.Key, req.Value)
-	if err != nil {
+	mut := store.Mutation{
+		Seq:   req.Seq,
+		Op:    ty.OpType(req.Op),
+		Key:   req.Key,
+		Value: req.Value,
+	}
+	if err := s.svc.ApplyMutation(mut); err != nil {
 		return &pb.Ack{Ok: false}, err
 	}
 	return &pb.Ack{Ok: true}, nil

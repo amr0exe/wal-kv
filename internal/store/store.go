@@ -65,14 +65,10 @@ func NewKVStore() (*KV, error) {
 }
 
 func (kv *KV) Apply(m Mutation) error {
-	err := kv.wal.Append(
-		m.Seq,
-		m.Op,
-		m.Key,
-		m.Value,
-	)
-	if err != nil {
-		return err
+	if kv.wal != nil {
+		if err := kv.wal.Append(m.Seq, m.Op, m.Key, m.Value); err != nil {
+			return err
+		}
 	}
 
 	kv.mu.Lock()
@@ -90,7 +86,7 @@ func (kv *KV) Apply(m Mutation) error {
 	return nil
 }
 
-func (kv *KV) SET(k, v string) error {
+func (kv *KV) SET(k, v string) (Mutation, error) {
 	mut := Mutation{
 		Seq:   kv.nextSeq(),
 		Op:    types.OpSet,
@@ -99,10 +95,10 @@ func (kv *KV) SET(k, v string) error {
 	}
 
 	if err := kv.Apply(mut); err != nil {
-		return err
+		return Mutation{}, err
 	}
 
-	return nil
+	return mut, nil
 }
 
 func (kv *KV) GET(k string) (string, bool) {
@@ -113,14 +109,17 @@ func (kv *KV) GET(k string) (string, bool) {
 	return v, ok
 }
 
-func (kv *KV) DEL(k string) error {
+func (kv *KV) DEL(k string) (Mutation, error) {
 	mut := Mutation{
 		Seq: kv.nextSeq(),
 		Op:  types.OpDel,
 		Key: k,
 	}
 
-	return kv.Apply(mut)
+	if err := kv.Apply(mut); err != nil {
+		return Mutation{}, err
+	}
+	return mut, nil
 }
 
 func (kv *KV) GetAllEntries() []Mutation {

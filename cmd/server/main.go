@@ -19,6 +19,7 @@ func main() {
 	grpcPort := flag.String("port", ":5001", "gRPC replication port")
 	httpPort := flag.String("http-port", ":8080", "HTTP server port")
 	primaryAddr := flag.String("primary", "localhost:5001", "primary gRPC address (used by replica)")
+	replicas := flag.String("replicas", "", "comma-separated replica gRPC addresses (used by primary)")
 
 	flag.Parse()
 
@@ -29,18 +30,26 @@ func main() {
 
 	switch role {
 	case typ.Primary:
-		runPrimary(*httpPort, *grpcPort)
+		runPrimary(*httpPort, *grpcPort, *replicas)
 	case typ.Replica:
-		runReplica(*httpPort, *primaryAddr)
+		runReplica(*httpPort, *grpcPort, *primaryAddr)
 	}
 }
 
-func runPrimary(httpAddr, grpcAddr string) {
+func runPrimary(httpAddr, grpcAddr, replicasFlag string) {
 	db, err := store.NewKVStore()
 	if err != nil {
 		log.Fatalf("failed to create store: %s", err.Error())
 	}
 	svc := service.NewKVService(db)
+
+	if replicasFlag != "" {
+		addrs := splitReplicas(replicasFlag)
+		rep := transport.NewReplicator(addrs)
+		svc.SetOnMutation(func(mut store.Mutation) {
+			rep.Broadcast(mut)
+		})
+	}
 
 	go transport.StartGRPCServer(grpcAddr, svc)
 
@@ -50,7 +59,7 @@ func runPrimary(httpAddr, grpcAddr string) {
 	log.Fatal(http.ListenAndServe(httpAddr, r))
 }
 
-func runReplica(httpAddr, primaryAddr string) {
+func runReplica(httpAddr, grpcAddr, primaryAddr string) {
 	db := store.NewKVStoreInMemory()
 	svc := service.NewKVService(db)
 
@@ -67,10 +76,26 @@ func runReplica(httpAddr, primaryAddr string) {
 	db.LoadSnapshot(mutations)
 	log.Printf("Replica loaded snapshot with %d entries", len(mutations))
 
+	go transport.StartGRPCServer(grpcAddr, svc)
+
 	h := handler.NewKVHandler(svc)
 	r := router.NewReplicaRouter(h)
 	log.Printf("Replica HTTP server listening on %s", httpAddr)
 	log.Fatal(http.ListenAndServe(httpAddr, r))
+}
+
+func splitReplicas(s string) []string {
+	var addrs []string
+	start := 0
+	for i := 0; i <= len(s); i++ {
+		if i == len(s) || s[i] == ',' {
+			if i > start {
+				addrs = append(addrs, s[start:i])
+			}
+			start = i + 1
+		}
+	}
+	return addrs
 }
 
 func ParseRole(s string) (typ.Role, error) {
