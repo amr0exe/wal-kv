@@ -1,9 +1,5 @@
 # wal-kv
 
-## Demo
-<video src="https://github.com/user-attachments/assets/c7f27f2d-7cdc-4afa-8748-1a7867202fcd" width="600" autoplay />
-
-
 ## Info
 In-memory key-value store with WAL persistence and primary-replica replication.
 
@@ -53,3 +49,6 @@ make kill
 # Replica 1
 ./app --node=replica --http-port=:8081 --port=:5002 --primary=localhost:5001
 ```
+
+## Demo
+<video src="https://github.com/user-attachments/assets/c7f27f2d-7cdc-4afa-8748-1a7867202fcd" width="600" autoplay />
