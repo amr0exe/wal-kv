@@ -1,5 +1,10 @@
 # wal-kv
 
+## Demo
+<video src="https://github.com/user-attachments/assets/c7f27f2d-7cdc-4afa-8748-1a7867202fcd" width="600" autoplay />
+
+
+## Info
 In-memory key-value store with WAL persistence and primary-replica replication.
 
 **Primary** handles SET/GET/DEL and replicates mutations to replicas. **Replicas** serve GET requests and stay in sync via snapshot on boot + real-time replication from primary.
