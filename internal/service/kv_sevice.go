@@ -3,6 +3,7 @@ package service
 import (
 	"errors"
 	"kvstore/internal/store"
+	ty "kvstore/internal/types"
 )
 
 // common errors
@@ -52,4 +53,18 @@ func (s *KVService) Del(key string) error {
 		return err
 	}
 	return nil
+}
+
+func (s *KVService) GetSnapshotState() ([]ty.SnapshotRecord, error) {
+	storedMutations := s.db.GetAllEntries()
+	records := make([]ty.SnapshotRecord, len(storedMutations))
+	for i, m := range storedMutations {
+		records[i] = ty.SnapshotRecord{
+			Seq:   m.Seq,
+			Op:    m.Op,
+			Key:   m.Key,
+			Value: m.Value,
+		}
+	}
+	return records, nil
 }

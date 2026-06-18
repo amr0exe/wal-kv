@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package replication;
+
+option go_package = "/pb";
+
+message Mutation {
+  uint32 seq = 1;
+  uint32 op = 2;
+  string key = 3;
+  string value = 4;
+}
+
+message Ack {
+  bool ok = 1;
+}
+
+message SnapshotRequest{}
+
+service replication {
+  rpc ApplyMutation(Mutation) returns (Ack);
+  rpc GetSnapshot(SnapshotRequest) returns (stream Mutation);
+}

@@ -14,3 +14,11 @@ func NewRouter(h *handler.KVHandler) *http.ServeMux {
 
 	return mux
 }
+
+func NewReplicaRouter(h *handler.KVHandler) *http.ServeMux {
+	mux := http.NewServeMux()
+
+	mux.HandleFunc("GET /kv/{k}", func(w http.ResponseWriter, r *http.Request) { h.Get(w, r) })
+
+	return mux
+}

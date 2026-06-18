@@ -9,3 +9,20 @@ const (
 	OpSet OpType = 1
 	OpDel OpType = 2
 )
+
+// Node Role
+// Role will define how they would act in distributed network
+type Role uint8
+
+const (
+	Primary Role = iota
+	Replica
+)
+
+// Snapshot structure
+type SnapshotRecord struct {
+	Seq   uint32
+	Op    OpType
+	Key   string
+	Value string
+}
