@@ -1,5 +1,7 @@
 package transport
 
+// Replicator holds gRPC connections to all replicas and pushes every SET/DEL to them.
+
 import (
 	"context"
 	"kvstore/internal/store"
@@ -36,6 +38,8 @@ func NewReplicator(addrs []string) *Replicator {
 	return &Replicator{clients: clients, conns: conns}
 }
 
+// Takes mutation object,
+// brodcast it to every client/connection stored on replicator
 func (r *Replicator) Broadcast(mut store.Mutation) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()

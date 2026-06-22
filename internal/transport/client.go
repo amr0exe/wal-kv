@@ -1,5 +1,7 @@
 package transport
 
+// Client used by replica to fetch a full-state snapshot from the primary on boot.
+
 import (
 	"context"
 	"io"
@@ -31,6 +33,8 @@ func (c *PrimaryClient) Close() error {
 	return c.conn.Close()
 }
 
+// GetSnapshot[Replica] method, sends empty SnapshotRequest,
+// Asking for stream of mutations
 func (c *PrimaryClient) GetSnapshot() ([]store.Mutation, error) {
 	stream, err := c.client.GetSnapshot(context.Background(), &pb.SnapshotRequest{})
 	if err != nil {

@@ -1,5 +1,7 @@
 package transport
 
+// gRPC server — runs on primary (serves GetSnapshot) and replica (serves ApplyMutation).
+
 import (
 	"context"
 	"kvstore/internal/service"
@@ -21,6 +23,8 @@ func NewReplicationServer(svc *service.KVService) *Server {
 	return &Server{svc: svc}
 }
 
+// GetSnapshot[Primary] method, collects mutations,
+// sends them in stream
 func (s *Server) GetSnapshot(req *pb.SnapshotRequest, stream pb.Replication_GetSnapshotServer) error {
 	records, err := s.svc.GetSnapshotState()
 	if err != nil {
@@ -40,6 +44,7 @@ func (s *Server) GetSnapshot(req *pb.SnapshotRequest, stream pb.Replication_GetS
 	return nil
 }
 
+// Applies mutation locally and updates WAL file
 func (s *Server) ApplyMutation(ctx context.Context, req *pb.Mutation) (*pb.Ack, error) {
 	mut := store.Mutation{
 		Seq:   req.Seq,

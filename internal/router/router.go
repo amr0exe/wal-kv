@@ -5,6 +5,8 @@ import (
 	"net/http"
 )
 
+// Router for primary node,
+// allows GET|PUT|DEL request
 func NewRouter(h *handler.KVHandler) *http.ServeMux {
 	mux := http.NewServeMux()
 
@@ -15,6 +17,7 @@ func NewRouter(h *handler.KVHandler) *http.ServeMux {
 	return mux
 }
 
+// Router for replica node, only allow GET request
 func NewReplicaRouter(h *handler.KVHandler) *http.ServeMux {
 	mux := http.NewServeMux()
 

@@ -27,6 +27,9 @@ func (kv *KV) nextSeq() uint32 {
 	return kv.seq
 }
 
+// NewKVStore, provides store for Primary Node,
+// Store is pre-feeded with Mutations from
+// WAL file's recoverability
 func NewKVStore() (*KV, error) {
 	w, err := wal.NewWAL()
 	if err != nil {
@@ -143,6 +146,8 @@ func (kv *KV) GetAllEntries() []Mutation {
 	return mutations
 }
 
+// NewKVStoreInMemory, provides store for Replica Nodes,
+// returns empty_store without any WAL-recoverability
 func NewKVStoreInMemory() *KV {
 	return &KV{
 		store: make(map[string]string),
