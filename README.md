@@ -6,7 +6,7 @@ A minimal distributed key-value store built from scratch to explore the challeng
 A single primary node handles all write operations (SET, DEL). Replica nodes serve read requests only. On startup, each replica fetches a full snapshot of the key-value state from the primary via gRPC streaming. Thereafter, every mutation performed on the primary is pushed in real time to all registered replicas over the same gRPC layer. Sequence numbers assigned by the primary guarantee that operations are applied in order across the cluster.
 
 ## Workflow
-<img width="1281" height="450" alt="Image" src="https://github.com/user-attachments/assets/3af2af89-9705-4cd4-8146-f27757571418" />
+<img width="1281" height="490" alt="Image" src="https://github.com/user-attachments/assets/3af2af89-9705-4cd4-8146-f27757571418" />
 
 
 ## WAL Format
